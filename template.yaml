@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sftp-lambda
+
+  Sample SAM Template for sftp-lambda
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Name of the bucket to write files to.
+  SftpFile: 
+    Type: String
+    Description: The path in SFTP to write to
+  SftpHost: 
+    Type: String
+    Description: The host to connect to.
+  SftpUser:
+    Type: String
+    Description: The SFTP username to connect with.
+  SftpPassword:
+    Type: String
+    NoEcho: True
+    Description: The SftpPassword. This will be stored in Secrets Manager.
+  VPC: 
+    Description: The VPC that the Lambda will be placed into
+    Type: AWS::EC2::VPC::Id   
+  Subnets:
+    Description: The subnet lambda will use.
+    Type: List<AWS::EC2::Subnet::Id>
+  
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 90
+
+Resources:
+  SftpLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: sftp-lambda/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      MemorySize: 1024
+      Events:
+        SFTPSchedule:
+          Type: Schedule 
+          Properties:
+            Schedule: cron(0 0 * * ? *)
+            Description: Runs sftp-lambda handler daily
+            Enabled: True
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+          SFTP_HOST: !Ref SftpHost
+          SFTP_USER: !Ref SftpUser
+          SFTP_PASSWORD_SECRET_ARN: !Ref SftpPasswordSecret
+          SFTP_FILE: !Ref SftpFile
+      VpcConfig:
+        SubnetIds: !Ref Subnets
+        SecurityGroupIds: 
+          - !Ref SftpLambdaSecurityGroup
+      Policies:
+        - S3WritePolicy: # Details: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-template-list.html#s3-write-policy 
+            BucketName: !Ref BucketName
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref SftpPasswordSecret
+
+  SftpPasswordSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Password for SFTP
+      SecretString: !Ref SftpPassword
+      
+  SftpLambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SecurityGroup for SFTP Lambda
+      VpcId: !Ref 'VPC'      
+Outputs:
+  SftpLambdaArn:
+    Description: "Arn for the SFTP Lambda"
+    Value: !GetAtt SftpLambda.Arn
+
