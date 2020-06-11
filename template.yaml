@@ -3,15 +3,10 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   sftp-lambda
 
-  Sample SAM Template for sftp-lambda
-
 Parameters:
   BucketName:
     Type: String
     Description: Name of the bucket to write files to.
-  SftpFile: 
-    Type: String
-    Description: The path in SFTP to write to
   SftpHost: 
     Type: String
     Description: The host to connect to.
@@ -22,6 +17,16 @@ Parameters:
     Type: String
     NoEcho: True
     Description: The SftpPassword. This will be stored in Secrets Manager.
+  SftpPrivateKeyAuth:
+    Type: String
+    Description: Set to True if the password is a private key.
+    Default: 'False'
+    AllowedValues:
+      - 'True'
+      - 'False'
+  FilesListJSON: 
+    Type: String
+    Description: "JSON formatted list of files. Example: [{'SourceFile': '/path/files/fileprefix-*.txt', 'TargetPath': '/destination/folder' }, {'SourceFile': '/path/otherpath/*', 'TargetPath': '/destination/folder2' }]"
   VPC: 
     Description: The VPC that the Lambda will be placed into
     Type: AWS::EC2::VPC::Id   
@@ -46,16 +51,21 @@ Resources:
         SFTPSchedule:
           Type: Schedule 
           Properties:
-            Schedule: cron(0 0 * * ? *)
+            Schedule: cron(0 4 * * ? *) # Run at midnight EST (Cloudwatch uses GMT)
             Description: Runs sftp-lambda handler daily
             Enabled: True
-      Environment:
-        Variables:
-          BUCKET_NAME: !Ref BucketName
-          SFTP_HOST: !Ref SftpHost
-          SFTP_USER: !Ref SftpUser
-          SFTP_PASSWORD_SECRET_ARN: !Ref SftpPasswordSecret
-          SFTP_FILE: !Ref SftpFile
+            Input:  !Sub | 
+              {
+                  "SftpHost": "${SftpHost}",
+                  "SftpUser": "${SftpUser}",
+                  "SftpSecretArn": "${SftpPasswordSecret}",
+                  "SftpPrivateKeyAuth": "${SftpPrivateKeyAuth}",
+                  "TargetBucketName": "${BucketName}",
+                  "Files":  ${FilesListJSON}
+                
+              }
+  
+
       VpcConfig:
         SubnetIds: !Ref Subnets
         SecurityGroupIds: 
