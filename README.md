@@ -10,7 +10,7 @@ The Lambda is written in Python and uses pysftp to interface with SFTP servers
 
     Note: folder matching and recursive folder matching is not currently supported.
     
-- Send files to different bucket paths. For example: Send `/sourcedir/*.csv` to `target-bucket\CSVs` and `/sourcedir/transactions_*.parquet` to `target-bucket\transactions` in a single invocation.
+- Send files to different bucket paths. For example: Send `/sourcedir/*.csv` to `target-bucket\CSVs` and `/sourcedir/transactions_*.parquet` to `target-bucket/transactions` in a single invocation.
 
 
 ## Limits
@@ -75,9 +75,19 @@ The first command will build the source of your application. The second command 
 * **Allow SAM CLI IAM role creation**: Create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. Must be **yes** to allow IAM role creation for this application. 
 * **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
 
+After the deployment completes, you can view the Lambda function and CloudWatch scheduled event from the AWS console. 
+
+If you opted to save arguments to samconfig.toml, you can make changes and re-deploy simply by calling:
+```bash
+sam build && sam deploy
+```
+| Important | 
+|:-|
+| As of SAM CLI 0.52.0, there appears to be an issue with propertly escaping double quotes in paramters. This will cause subsequent deploys to fail becaue the FileListJSON is improperly escaped. You can work around this by manually editing samconfig.toml and adding additional back slashes (`\\`) to double-quotes in the JSON string. See [this issue](https://github.com/awslabs/aws-sam-cli/issues/2034) for details.
+
 ### FilesListJSON Format
 The FilesListJSON parameter is a JSON-formatted array of objects that uses the following format to define what files will be copied to S3:
-```
+```json
 [{"SourceFile": "/my-sftp-directory/subfolder1/*.csv", "TargetPath": "/target-s3-path/subfolder"}, {"SourceFile": "/my-sftp-directory/subfolder2/my-file.parquet", "TargetPath": "/target-s3-path/another-folder"}, {"SourceFile": "/my-sftp-directory/subfolder2/transactions_*.csv", "TargetPath": "/target-s3-path/transactions"}]
 ```
 **SourceFile**: The source directory path and file name on the SFTP server. Supports file pattern matching. Directory/folder pattern matching and recursive path matching is not currently supported.
@@ -107,7 +117,7 @@ aws cloudformation delete-stack --stack-name <sftp-lambda-stack-name>
 
 ## Resources
 
- [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) 
- [pysftp API documentation](https://pysftp.readthedocs.io/en/release_0.2.8/index.html)
+ * [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) 
+ * [pysftp API documentation](https://pysftp.readthedocs.io/en/release_0.2.8/index.html)
  
 
